@@ -1,0 +1,3 @@
+[submodule "NGPCA-Clustering"]
+	path = NGPCA-Clustering
+	url = https://github.com/jsimbadev/NGPCA-Clustering.git
