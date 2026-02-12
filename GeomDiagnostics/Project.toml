@@ -1,0 +1,8 @@
+name = "GeomDiagnostics"
+uuid = "59bcaff4-58e7-4728-9b26-69b9fdf1e5ad"
+version = "0.1.0"
+
+[deps]
+Comonicon = "863f3e99-da2a-4334-8734-de3dacbe5542"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
