@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_DIR="$REPO_ROOT/GeomDiagnostics"
+PROJECT_DIR="$REPO_ROOT/GeomDiagnostics.jl"
 INSTALL_ROOT="${1:-$REPO_ROOT/.cli}"
 CLI_NAME="${2:-geomdiagnostics}"
 
