@@ -2,6 +2,7 @@ module DistGen
 
 
 import Comonicon
+using ..Io
 using Random, Distributions, LinearAlgebra, Plots
 
 # """
@@ -15,9 +16,16 @@ const SUPPORTED_DISTRIBUTIONS = Dict(
 
 const MANUALLY_CHECK_FIT = true
 
+
+function generate_outputs_dir()
+    project_root = normpath(joinpath(@__DIR__, ".."))
+    output_dir = joinpath(project_root, "outputs")
+    return output_dir
+end
+
 function generate_file_name(distribution::String, num_points::Int, seed::Int)
     project_root = normpath(joinpath(@__DIR__, ".."))
-    output_dir = joinpath(project_root, "outputs", "plots")
+    output_dir = joinpath(generate_outputs_dir(), "plots")
     mkpath(output_dir)
     timestamp = string(round(Int, time()))
     output_path = joinpath(
@@ -60,6 +68,13 @@ function generate_point_cloud(distribution::String, num_points::Int, seed::Int=4
         params = fit(MvNormal, point_cloud)
         @info "The estimated parameters for the $(distribution): $(params)"
     end
+
+
+    Io.write_samples(
+        transpose(point_cloud),
+        joinpath("$(generate_outputs_dir())", "samples.csv")
+    )
+
 
 end 
 
