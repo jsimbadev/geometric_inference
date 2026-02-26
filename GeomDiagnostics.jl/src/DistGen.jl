@@ -24,7 +24,6 @@ function generate_outputs_dir()
 end
 
 function generate_file_name(distribution::String, num_points::Int, seed::Int)
-    project_root = normpath(joinpath(@__DIR__, ".."))
     output_dir = joinpath(generate_outputs_dir(), "plots")
     mkpath(output_dir)
     timestamp = string(round(Int, time()))
@@ -32,6 +31,7 @@ function generate_file_name(distribution::String, num_points::Int, seed::Int)
         output_dir,
         "point_cloud_$(distribution)_n$(num_points)_seed$(seed)_$(timestamp).png",
     )
+    return output_path
 end
 
 
