@@ -15,6 +15,8 @@ struct MvnNormalSampleSource{MvnNormalD<:Distributions.AbstractMvNormal} <: Abst
     Mvn::MvnNormalD
 end
 
+# https://lutpub.lut.fi/bitstream/handle/10024/36631/isbn9789516976627.pdf?sequence=1&isAllowed=y
+# https://cran.r-project.org/web/packages/FME/vignettes/FMEmcmc.pdf
 struct BananaSampleSource{T<:Real, MvnNormalD<:Distributions.AbstractMvNormal} <: AbstractSampleSource
     a::T
     b::T
