@@ -2,6 +2,7 @@ module GeomDiagnostics
 
 include("io.jl")
 include("DistGen.jl")
+include("NGPCAJson.jl")
 
 using Comonicon
 
