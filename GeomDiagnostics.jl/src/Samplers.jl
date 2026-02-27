@@ -2,11 +2,10 @@ module Samplers
 
 using ..NGPCAJson
 using NearestNeighbors, HNSW
- # TODO keep this file backend-agnostic via wrapper constructors (exact vs approximate)
 
 abstract type Atlas end
 
-abstract type CovarianceField <: Atlas end
+abstract type AbstractCovarianceField <: Atlas end
 
 abstract type AbstractNearestNeighbourLookup end
 
@@ -16,39 +15,73 @@ abstract type ApproximateNN <: AbstractNearestNeighbourLookup end
 
 
 struct HNSWNN <: ApproximateNN
-    # TODO include metric/config fields if we need reproducible ANN settings
     index::HierarchicalNSW
 end
 
 struct BallTreeNN <: ExactNN
-    # TODO keep point layout consistent (NearestNeighbors expects points in columns)
     index::BallTree
 end
 
+abstract type NNBackend end
 
-struct NGPCACF{NN<:AbstractNearestNeighbourLookup} <: CovarianceField
-    nn::NN
-    # TODO keep units in this struct so neighbour ids can map to covariance payload
-    # units::Vector{NGPCAUnit}
+# This configuration object is implemention bound
+# So when underlying HNSW changes, this must too
+struct UseHNSW <: NNBackend
+    # TODO look into Distances.jl and get better typing
+    metric::Euclidean
 end
 
-function construct_ngpcacf_from_disk(ngpca_file::String)
-    units = NGPCAJson.read_ngpca_units(ngpca_file)
-    # TODO map units -> center matrix `data` before building index
-    # TODO start with exact baseline (BallTreeNN), then add HNSWNN path
-    # TODO return NGPCACF(nn=..., units=...) once payload wiring is done
-    # Euclidean is default but want to be explicit
-    nn_index = HNSWNN(HierarchicalNSW(data; metric=Euclidean()))
+struct UseBallTree <: NNBackend
+    parallel::Bool
+    function UseBallTree()
+        return new(false)
+    end
+end
 
-    
+struct NGPCACF{NN<:AbstractNearestNeighbourLookup} <: AbstractCovarianceField
+    nn::NN
+end
+
+# TODO naming here 'data' is not the best... think over eventually
+# Do I want convernience methods to go from full fat NGPCA object in memory?
+function construct_ngpcacf_from_data(data::Matrix{Float64}, backend::NNBackend)
+    _construct_cf(data, backend)
+end
+
+function _construct_cf(data::Matrix{Float64}, backend::UseBallTree)
+    nn = BallTreeNN(BallTree(data; parallel=backend.parallel))
+    NGPCACF{typeof(nn)}(nn)
+end
+
+
+function construct_cf(data::Matrix{Float64}, backend::UseHNSW)
+    nn = BallTreeNN(HierarchicalNSW(data; metric=backend.metric))
+    NGPCACF{typeof(nn)}(nn)
+end
+
+
+# https://github.com/JuliaIO/JSON.jl/blob/f4fbb5a429a21b422c88883981c34e29d22b887e/src/parse.jl#L33
+function construct_ngpcacf_from_disk(ngpca_file::String, backend::NNBackend)
+    units = NGPCAJson.read_ngpca_units(ngpca_file)
+    array_based_units = array_of_units_to_array_based(units)
+    construct_ngpcacf_from_data(array_based_units.centers, backend)
 end
 
 struct LocalCovarianceRWM{CF<: Atlas}
-    # TODO add proposal configuration here (step scale, warmup/adaptation flags)
     field::CF
 end
 
 
+function get_knn(q::AbstractVector, cf::AbstractCovarianceField, k::Int=1)
+    get_knn(q, cf.nn, k)
+end
 
+function get_knn(q::AbstractVector, nn::HNSWNN, k=Int=1)
+    knn_search(nn.index, q, k)
+end
+
+function get_knn(q::AbstractVector, nn::BallTreeNN, k=Int=1)
+    knn(nn.index, q, k)
+end
 
 end
