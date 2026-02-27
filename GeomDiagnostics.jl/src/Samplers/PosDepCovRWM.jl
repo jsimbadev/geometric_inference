@@ -2,26 +2,26 @@
 using AbstractMCMC
 using ..NGPCAJson
 using ..CovarianceFields
-using Distribution, Random
+using Distributions, Random
 
-abstract type AbstractPositionDepenedentRWMSampler <: AbstractMCMC.AbstractSampler end
+abstract type AbstractPositionDependentRWMSampler <: AbstractMCMC.AbstractSampler end
 
-struct HardPositionDependentRWMSampler{CF<:AbstractCovarianceField} <: AbstractPositionDepenedentRWMSampler
+struct HardPositionDependentRWMSampler{CF<:AbstractCovarianceField} <: AbstractPositionDependentRWMSampler
     CovF::CF
     Metadata::NGPCAJson.NGPCAUnitDO
 end
 
 
 # Initial step that will intialize state
-function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDepenedentRWMSampler; kwargs)
-
-    # Initialize state
-    state = Vector([0.0, 0.0])
+function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler; kwargs)
+    # TODO Need some way to get dimension nicely.
+    # Probably imlement a dimension function + multiple dispatch
+    state = zeros(sampler.CovF.Metadata.m[begin])
     AbstractMCMC.step(rng, model, sampler, state; kwargs)
 
 end
 
-function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDepenedentRWMSampler, state; kwargs)
+function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler, state; kwargs)
     
     uniform_rv_draw = rand(rng, 1)
     proposed_state = propose(rng, state, sampler)
@@ -30,9 +30,9 @@ function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, 
 end
 
 function propose(rng::AbstractRNG, state::AbstractVector, sampler::HardPositionDependentRWMSampler)
-    idx, _ = get_knn(state, sampler.CF, 1)
-    covariance = construct_covariance(idx, sampler.Metadata)
-    rand(rng, MvnNormal(state, covariance))
+    idx, _ = get_knn(state, sampler.CovF, 1)
+    covariance = construct_covariance(idx[begin], sampler.Metadata)
+    rand(rng, MvNormal(state, covariance))
 
 end
 
@@ -45,6 +45,6 @@ function construct_covariance(i::Int, indexableMetadata::NGPCAJson.NGPCAUnitDO)
     # full covariance by Eigenvalue decomposition theorem
     # Also is there some optimization here at this multiplication?
     # Probably use a buffer since dimensionality is upper bounded
-    transpose(eigvecs) * eigvals * eigvecs
+    eigvecs * Diagonal(eigvals) * transpose(eigvecs)
     
 end
