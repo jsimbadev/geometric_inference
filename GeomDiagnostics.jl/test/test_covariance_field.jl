@@ -1,7 +1,7 @@
 
 using NearestNeighbors
 using JSON
-using GeomDiagnostics.Samplers
+using GeomDiagnostics.CovarianceFields
 import GeomDiagnostics.NGPCAJson: NGPCAUnitDO
 
 m=Vector([1,2])
@@ -26,15 +26,15 @@ test_covriance_data = NGPCAUnitDO(
 
 
 @testset "Can instantiate NGPCA Covariance field given a matrix of centroid columns" begin
-    covariance_field = Samplers.construct_ngpcacf_from_data(centers, Samplers.UseBallTree())
-    @test covariance_field isa Samplers.AbstractCovarianceField
+    covariance_field = CovarianceFields.construct_ngpcacf_from_data(centers, CovarianceFields.UseBallTree())
+    @test covariance_field isa CovarianceFields.AbstractCovarianceField
 end
 
 @testset "Can instantiate NGPCA Covariance field with HNSW backend" begin
-    covariance_field_hnsw = Samplers.construct_ngpcacf_from_data(centers, Samplers.UseHNSW(Euclidean()))
-    @test covariance_field_hnsw isa Samplers.AbstractCovarianceField
+    covariance_field_hnsw = CovarianceFields.construct_ngpcacf_from_data(centers, CovarianceFields.UseHNSW(Euclidean()))
+    @test covariance_field_hnsw isa CovarianceFields.AbstractCovarianceField
 
-    idx, dist = Samplers.get_knn(Vector([1.1, 2.2]), covariance_field_hnsw, 1)
+    idx, dist = CovarianceFields.get_knn(Vector([1.1, 2.2]), covariance_field_hnsw, 1)
     @test idx == [1]
 end
 
@@ -66,9 +66,9 @@ end
     )
     write(tmp_json, JSON.json(units_obj))
 
-    covariance_field_disk = Samplers.construct_ngpcacf_from_disk(tmp_json, Samplers.UseBallTree())
-    @test covariance_field_disk isa Samplers.AbstractCovarianceField
-    idx, dist = Samplers.get_knn(Vector([3.1, 4.2]), covariance_field_disk, 1)
+    covariance_field_disk = CovarianceFields.construct_ngpcacf_from_disk(tmp_json, CovarianceFields.UseBallTree())
+    @test covariance_field_disk isa CovarianceFields.AbstractCovarianceField
+    idx, dist = CovarianceFields.get_knn(Vector([3.1, 4.2]), covariance_field_disk, 1)
     @test idx == [2]
 
     rm(tmp_json; force=true)
@@ -78,10 +78,10 @@ end
     query1 = Vector([1.1, 2.2])
     query2 = Vector([3.1, 4.2])
 
-    covariance_field = Samplers.construct_ngpcacf_from_data(centers, Samplers.UseBallTree())
+    covariance_field = CovarianceFields.construct_ngpcacf_from_data(centers, CovarianceFields.UseBallTree())
     
-    idx1, dist1 = Samplers.get_knn(query1, covariance_field, 1)
-    idx2, dist2 = Samplers.get_knn(query2, covariance_field, 1)
+    idx1, dist1 = CovarianceFields.get_knn(query1, covariance_field, 1)
+    idx2, dist2 = CovarianceFields.get_knn(query2, covariance_field, 1)
 
     # Julia Matrix are 1 indexed
     @test idx1 == [1]

@@ -3,6 +3,7 @@ module GeomDiagnostics
 include("io.jl")
 include("DistGen.jl")
 include("NGPCAJson.jl")
+include("CovarianceFields.jl")
 include("Samplers.jl")
 
 using Comonicon
