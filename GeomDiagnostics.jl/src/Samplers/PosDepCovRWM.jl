@@ -2,7 +2,7 @@
 using AbstractMCMC
 using ..NGPCAJson
 using ..CovarianceFields
-using Distributions, Random
+using Distributions, Random, LinearAlgebra
 
 abstract type AbstractPositionDependentRWMSampler <: AbstractMCMC.AbstractSampler end
 
@@ -14,26 +14,48 @@ end
 
 # Initial step that will intialize state
 function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler; kwargs)
-    # TODO Need some way to get dimension nicely.
-    # Probably imlement a dimension function + multiple dispatch
-    state = zeros(sampler.CovF.Metadata.m[begin])
+    # TODO maybe have explicit state initialize function call here
+    # dispatched on sampler type
+    state = zeros(dimension(sampler))
     AbstractMCMC.step(rng, model, sampler, state; kwargs)
 
 end
 
 function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler, state; kwargs)
     
-    uniform_rv_draw = rand(rng, 1)
+    uniform_rv_draw = rand(rng)
     proposed_state = propose(rng, state, sampler)
 
     state
 end
 
-function propose(rng::AbstractRNG, state::AbstractVector, sampler::HardPositionDependentRWMSampler)
-    idx, _ = get_knn(state, sampler.CovF, 1)
-    covariance = construct_covariance(idx[begin], sampler.Metadata)
-    rand(rng, MvNormal(state, covariance))
+function covfield(sampler::HardPositionDependentRWMSampler)
+    sampler.CovF
+end
 
+function metadata(sampler::HardPositionDependentRWMSampler)
+    # Metadata should be some integer position indexable
+    # sturcture that lines up with the position of the 
+    # centroids inside the nearest neighbour lookup
+    sampler.Metadata
+end
+
+function dimension(sampler::HardPositionDependentRWMSampler)
+    metadata(sampler).m[begin]
+end
+
+function dimension(s::AbstractPositionDependentRWMSampler)
+    error("Not Implemented for $(typeof(s))")
+end
+
+function propose(rng::AbstractRNG, state::AbstractVector, sampler::HardPositionDependentRWMSampler)
+    idx, _ = get_knn(state, covfield(sampler), 1)
+    covariance = construct_covariance(idx[begin], metadata(sampler))
+    rand(rng, MvNormal(state, covariance))
+end
+
+function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
+    error("Not implemented for $(typeof(sampler))")
 end
 
 function construct_covariance(i::Int, indexableMetadata::NGPCAJson.NGPCAUnitDO)
@@ -46,5 +68,7 @@ function construct_covariance(i::Int, indexableMetadata::NGPCAJson.NGPCAUnitDO)
     # Also is there some optimization here at this multiplication?
     # Probably use a buffer since dimensionality is upper bounded
     eigvecs * Diagonal(eigvals) * transpose(eigvecs)
+
+    # TODO Do I need to add ϵI term
     
 end
