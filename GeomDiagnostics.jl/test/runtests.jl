@@ -5,5 +5,6 @@ using GeomDiagnostics
 
     include("test_covariance_field.jl")
     include("test_sampler_posdepcovrwm.jl")
+    include("test_distgen.jl")
 
 end

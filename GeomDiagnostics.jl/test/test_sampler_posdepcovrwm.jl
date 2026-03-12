@@ -30,7 +30,7 @@ metadata = NGPCAUnitDO(m, centers, weights, eigenvalues, sigma_sqrs, activities,
     sampler = Samplers.HardPositionDependentRWMSampler(cov_field, metadata)
 
     @testset "construct_covariance is symmetric and positive definite" begin
-        md_bad = NGPCAUnitDO(
+        metadata_with_negative_eigenvalue = NGPCAUnitDO(
             [2],
             reshape([0.0, 0.0], 2, 1),
             [Matrix{Float64}(I, 2, 2)],
@@ -40,7 +40,7 @@ metadata = NGPCAUnitDO(m, centers, weights, eigenvalues, sigma_sqrs, activities,
             [0.0],
             [1e-6],
         )
-        cov = Samplers.construct_covariance(1, md_bad)
+        cov = Samplers.construct_covariance(1, metadata_with_negative_eigenvalue)
         @test cov ≈ transpose(cov)
         @test isposdef(Symmetric(cov))
     end
