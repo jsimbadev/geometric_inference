@@ -1,7 +1,10 @@
 
 using AbstractMCMC
+using LogDensityProblems
 using ..NGPCAJson
 using ..CovarianceFields
+using ..CovarianceFields.Types: AbstractCovarianceField
+using ..CovarianceFields.Query: get_knn
 using Distributions, Random, LinearAlgebra
 
 abstract type AbstractPositionDependentRWMSampler <: AbstractMCMC.AbstractSampler end
@@ -12,21 +15,34 @@ struct HardPositionDependentRWMSampler{CF<:AbstractCovarianceField} <: AbstractP
 end
 
 
-# Initial step that will intialize state
-function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler; kwargs)
-    # TODO maybe have explicit state initialize function call here
-    # dispatched on sampler type
-    state = zeros(dimension(sampler))
-    AbstractMCMC.step(rng, model, sampler, state; kwargs)
-
+function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.LogDensityModel, sampler::AbstractPositionDependentRWMSampler; kwargs...)
+    initial_state = get(kwargs, :initial_state, zeros(dimension(sampler)))
+    AbstractMCMC.step(rng, model, sampler, initial_state; kwargs...)
 end
 
-function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler, state; kwargs)
-    
-    uniform_rv_draw = rand(rng)
-    proposed_state = propose(rng, state, sampler)
+function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.LogDensityModel, sampler::AbstractPositionDependentRWMSampler, state; kwargs...)
+    proposal = propose(rng, state, sampler)
+    proposed_state = proposal.state
+    forward_logproposal = proposal.logproposal
+
+    current_logdensity = target_logdensity(model, state)
+    proposed_logdensity = target_logdensity(model, proposed_state)
+    reverse_logproposal = proposal_logdensity(proposed_state, state, sampler)
+
+    log_acceptance = proposed_logdensity + reverse_logproposal - current_logdensity - forward_logproposal
+    if log(rand(rng)) < min(0.0, log_acceptance)
+        return proposed_state
+    end
 
     state
+end
+
+function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler; kwargs...)
+    error("$(typeof(sampler)) expects model::AbstractMCMC.LogDensityModel. Wrap your target with AbstractMCMC.LogDensityModel.")
+end
+
+function AbstractMCMC.step(rng::AbstractRNG, model::AbstractMCMC.AbstractModel, sampler::AbstractPositionDependentRWMSampler, state; kwargs...)
+    error("$(typeof(sampler)) expects model::AbstractMCMC.LogDensityModel. Wrap your target with AbstractMCMC.LogDensityModel.")
 end
 
 function covfield(sampler::HardPositionDependentRWMSampler)
@@ -41,7 +57,7 @@ function metadata(sampler::HardPositionDependentRWMSampler)
 end
 
 function dimension(sampler::HardPositionDependentRWMSampler)
-    metadata(sampler).m[begin]
+    size(metadata(sampler).centers, 1)
 end
 
 function dimension(s::AbstractPositionDependentRWMSampler)
@@ -49,26 +65,37 @@ function dimension(s::AbstractPositionDependentRWMSampler)
 end
 
 function propose(rng::AbstractRNG, state::AbstractVector, sampler::HardPositionDependentRWMSampler)
-    idx, _ = get_knn(state, covfield(sampler), 1)
-    covariance = construct_covariance(idx[begin], metadata(sampler))
-    rand(rng, MvNormal(state, covariance))
+    covariance = local_covariance(state, sampler)
+    proposal_dist = MvNormal(state, covariance)
+    proposed_state = rand(rng, proposal_dist)
+    (state=proposed_state, covariance=covariance, logproposal=logpdf(proposal_dist, proposed_state))
 end
 
 function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
     error("Not implemented for $(typeof(sampler))")
 end
 
+function proposal_distribution(state::AbstractVector, sampler::HardPositionDependentRWMSampler)
+    MvNormal(state, local_covariance(state, sampler))
+end
+
+function proposal_logdensity(from::AbstractVector, to::AbstractVector, sampler::HardPositionDependentRWMSampler)
+    logpdf(proposal_distribution(from, sampler), to)
+end
+
+function local_covariance(state::AbstractVector, sampler::HardPositionDependentRWMSampler)
+    idx, _ = get_knn(state, covfield(sampler), 1)
+    construct_covariance(idx[begin], metadata(sampler))
+end
+
+function target_logdensity(model::AbstractMCMC.LogDensityModel, state::AbstractVector)
+    LogDensityProblems.logdensity(model.logdensity, state)
+end
+
 function construct_covariance(i::Int, indexableMetadata::NGPCAJson.NGPCAUnitDO)
-    # TODO probably hide this under one more level which just takes index and stucture
-    # that can be indexed into... But when I get around to abstracting the metdata
     eigvals, eigvecs = indexableMetadata.eigenvalues[:, i], indexableMetadata.weights[i]
-
-    # TODO probably do this better... right now assume full dimensions so can recover
-    # full covariance by Eigenvalue decomposition theorem
-    # Also is there some optimization here at this multiplication?
-    # Probably use a buffer since dimensionality is upper bounded
-    eigvecs * Diagonal(eigvals) * transpose(eigvecs)
-
-    # TODO Do I need to add ϵI term
-    
+    stable_eigvals = max.(eigvals, zero(eltype(eigvals)))
+    covariance = eigvecs * Diagonal(stable_eigvals) * transpose(eigvecs)
+    jitter = max(indexableMetadata.epsilons[i], eps(eltype(covariance)))
+    Matrix(Symmetric(covariance + jitter * I))
 end
