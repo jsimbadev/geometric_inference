@@ -1,4 +1,8 @@
 using AbstractMCMC
+using LogDensityProblems
+using ..CovarianceFields
+using ..Samplers
+import ..NGPCAJson: NGPCAUnitDO
 
 abstract type AbstractSampleSource end
 
@@ -24,6 +28,30 @@ struct MCMCSampleSource{
     InitialState::V
     BurnIn::Int
     Thinning::Int
+end
+
+struct MvNormalLogDensity{D<:Distributions.AbstractMvNormal}
+    Dist::D
+end
+
+struct BananaLogDensity{T<:Real, D<:Distributions.AbstractMvNormal}
+    a::T
+    b::T
+    Base::D
+end
+
+LogDensityProblems.logdensity(ld::MvNormalLogDensity, x) = logpdf(ld.Dist, x)
+LogDensityProblems.dimension(ld::MvNormalLogDensity) = length(mean(ld.Dist))
+LogDensityProblems.capabilities(::MvNormalLogDensity) = LogDensityProblems.LogDensityOrder{0}()
+
+LogDensityProblems.dimension(ld::BananaLogDensity) = length(mean(ld.Base))
+LogDensityProblems.capabilities(::BananaLogDensity) = LogDensityProblems.LogDensityOrder{0}()
+
+function LogDensityProblems.logdensity(ld::BananaLogDensity, x)
+    length(x) < 2 && error("Banana log density requires at least 2 dimensions")
+    z = copy(x)
+    z[2] = x[2] - ld.b * (x[1]^2 - ld.a^2)
+    logpdf(ld.Base, z)
 end
 
 function _generate_mvn_gaussian_coordinates(rng::Random.AbstractRNG, d::Distributions.AbstractMvNormal, num::Int=1)
@@ -104,6 +132,20 @@ end
 
 function supported_distributions()
     collect(keys(SAMPLE_SOURCE_REGISTRY))
+end
+
+function make_pdrwm_sampler_2d(; proposal_variance::Real=0.5)
+    m = [2, 2]
+    centers = [-2.0 2.0; -2.0 2.0]
+    weights = [Matrix{Float64}(I, 2, 2), Matrix{Float64}(I, 2, 2)]
+    eigenvalues = [proposal_variance proposal_variance; proposal_variance proposal_variance]
+    sigma_sqrs = [1.0, 1.0]
+    activities = [1.0, 1.0]
+    alphas = [0.0, 0.0]
+    epsilons = [1e-8, 1e-8]
+    metadata = NGPCAUnitDO(m, centers, weights, eigenvalues, sigma_sqrs, activities, alphas, epsilons)
+    cov_field = CovarianceFields.construct_ngpcacf_from_data(metadata.centers, CovarianceFields.UseBallTree())
+    Samplers.HardPositionDependentRWMSampler(cov_field, metadata)
 end
 
 register_sample_source!(

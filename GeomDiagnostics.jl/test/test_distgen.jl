@@ -1,5 +1,6 @@
 using Test
 using Random
+using JSON
 using AbstractMCMC
 using LogDensityProblems
 
@@ -52,5 +53,48 @@ end
         @test points[:, 1] != points[:, 2]
 
         delete!(DistGen.SUPPORTED_DISTRIBUTIONS, source_name)
+    end
+
+    @testset "JSON config supports banana direct source" begin
+        tmp_json = tempname() * ".json"
+        cfg = Dict(
+            "source" => "banana",
+            "seed" => 9,
+            "plot_points" => false,
+            "source_config" => Dict(
+                "a" => 1.5,
+                "b" => 0.3,
+            ),
+        )
+        write(tmp_json, JSON.json(cfg))
+
+        points = DistGen.generate_samples_from_config(tmp_json, 10)
+        @test size(points) == (2, 10)
+
+        rm(tmp_json; force=true)
+    end
+
+    @testset "JSON config supports PDRWM banana source" begin
+        tmp_json = tempname() * ".json"
+        cfg = Dict(
+            "source" => "pdrwm_banana2d",
+            "seed" => 13,
+            "plot_points" => false,
+            "source_config" => Dict(
+                "a" => 1.0,
+                "b" => 0.2,
+                "proposal_variance" => 0.3,
+                "burnin" => 5,
+                "thinning" => 1,
+                "initial_state" => [0.0, 0.0],
+            ),
+        )
+        write(tmp_json, JSON.json(cfg))
+
+        points = DistGen.generate_samples_from_config(tmp_json, 12)
+        @test size(points) == (2, 12)
+        @test points[:, 1] != points[:, 2]
+
+        rm(tmp_json; force=true)
     end
 end
