@@ -60,3 +60,71 @@ julia --project=GeomDiagnostics -e "using GeomDiagnostics; GeomDiagnostics.comon
 
 If you have seen examples like `Comonicon.build()`, that API is not available in this installed version.
 `comonicon_install()` is the supported way to generate the installed command wrapper.
+
+### DistGen JSON configuration
+
+`GeomDiagnostics` now supports a JSON config input in addition to named distributions.
+
+If the first CLI argument ends with `.json`, it is treated as a config path.
+
+Example:
+
+```bash
+julia --project=GeomDiagnostics.jl -e "using GeomDiagnostics; GeomDiagnostics.main(\"/tmp/distgen_config.json\", 2000)"
+```
+
+Minimal config shape:
+
+```json
+{
+  "source": "banana",
+  "seed": 42,
+  "plot_points": true,
+  "source_config": {
+    "a": 1.0,
+    "b": 0.2
+  }
+}
+```
+
+Supported `source` values through config currently include:
+
+- `normal`
+- `banana`
+- `pdrwm_normal2d`
+- `pdrwm_banana2d`
+
+`pdrwm_banana2d` example:
+
+```json
+{
+  "source": "pdrwm_banana2d",
+  "seed": 42,
+  "plot_points": true,
+  "source_config": {
+    "a": 1.0,
+    "b": 0.2,
+    "proposal_variance": 0.5,
+    "burnin": 200,
+    "thinning": 1,
+    "initial_state": [0.0, 0.0]
+  }
+}
+```
+
+### Defaults Policy
+
+The current implementation favors reasonable defaults over hard errors when optional config fields are missing:
+
+- `seed` defaults to `42`
+- `plot_points` defaults to `false`
+- missing `source_config` defaults to an empty object
+- `banana` defaults: `a=1.0`, `b=1.0`
+- `pdrwm_normal2d` defaults:
+  - `proposal_variance=0.5`
+  - `burnin=200`
+  - `thinning=1`
+  - `initial_state=[0.0, 0.0]`
+- `pdrwm_banana2d` defaults are the same as above, plus `a=1.0`, `b=1.0`
+
+Errors are still raised for invalid or unknown core choices (for example, unsupported `source` names).
