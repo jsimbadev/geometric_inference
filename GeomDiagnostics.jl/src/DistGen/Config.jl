@@ -89,5 +89,21 @@ function build_sample_source(cfg::DistGenConfig)
         return MCMCSampleSource(model, sampler, initial_state, burnin, thinning)
     end
 
+    if source_name == "rwm_banana2d"
+        proposal_variance = _get_real(source_cfg, "proposal_variance", 0.5)
+        burnin = _get_int(source_cfg, "burnin", 200)
+        thinning = _get_int(source_cfg, "thinning", 1)
+        initial_state = _get_vector_float(source_cfg, "initial_state", [0.0, 0.0])
+        a = _get_real(source_cfg, "a", 1.0)
+        b = _get_real(source_cfg, "b", 1.0)
+
+        dimension = _get_int(source_cfg, "dim", 2)
+        sampler = make_rwm_sampler_2d(; proposal_variance, dimension)
+        base = Distributions.MvNormal([0.0, 0.0], reshape([1.0, 0.9, 0.9, 1.0], 2, 2))
+        target = BananaLogDensity(a, b, base)
+        model = AbstractMCMC.LogDensityModel(target)
+        return MCMCSampleSource(model, sampler, initial_state, burnin, thinning)
+    end
+
     get_sample_source(source_name)
 end

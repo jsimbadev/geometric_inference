@@ -134,6 +134,7 @@ function supported_distributions()
     collect(keys(SAMPLE_SOURCE_REGISTRY))
 end
 
+# TODO Major - Generalize all of this for higher dimension experiments
 function make_pdrwm_sampler_2d(; proposal_variance::Real=0.5)
     m = [2, 2]
     centers = [-2.0 2.0; -2.0 2.0]
@@ -146,6 +147,11 @@ function make_pdrwm_sampler_2d(; proposal_variance::Real=0.5)
     metadata = NGPCAUnitDO(m, centers, weights, eigenvalues, sigma_sqrs, activities, alphas, epsilons)
     cov_field = CovarianceFields.construct_ngpcacf_from_data(metadata.centers, CovarianceFields.UseBallTree())
     Samplers.HardPositionDependentRWMSampler(cov_field, metadata)
+end
+
+function make_rwm_sampler_2d(; proposal_variance::Real=0.5, dimension::Int=2)
+    cov_field = proposal_variance * Matrix(I, dimension, dimension)
+    Samplers.RWMSampler(cov_field)
 end
 
 register_sample_source!(

@@ -64,22 +64,22 @@ function dimension(s::AbstractPositionDependentRWMSampler)
     error("Not Implemented for $(typeof(s))")
 end
 
-function propose(rng::AbstractRNG, state::AbstractVector, sampler::HardPositionDependentRWMSampler)
+function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
     covariance = local_covariance(state, sampler)
     proposal_dist = MvNormal(state, covariance)
     proposed_state = rand(rng, proposal_dist)
     (state=proposed_state, covariance=covariance, logproposal=logpdf(proposal_dist, proposed_state))
 end
 
-function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
-    error("Not implemented for $(typeof(sampler))")
-end
+# function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
+#     error("Not implemented for $(typeof(sampler))")
+# end
 
-function proposal_distribution(state::AbstractVector, sampler::HardPositionDependentRWMSampler)
+function proposal_distribution(state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
     MvNormal(state, local_covariance(state, sampler))
 end
 
-function proposal_logdensity(from::AbstractVector, to::AbstractVector, sampler::HardPositionDependentRWMSampler)
+function proposal_logdensity(from::AbstractVector, to::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
     logpdf(proposal_distribution(from, sampler), to)
 end
 
