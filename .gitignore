@@ -256,3 +256,9 @@ JuliaLocalPreferences.toml
 
 **/outputs
 **/.cli
+
+############### experiment jsons #########
+
+**/configuration.json
+
+############### experiment jsons #########
