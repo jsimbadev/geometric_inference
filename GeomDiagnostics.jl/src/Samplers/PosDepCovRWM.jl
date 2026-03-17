@@ -71,10 +71,6 @@ function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPosit
     (state=proposed_state, covariance=covariance, logproposal=logpdf(proposal_dist, proposed_state))
 end
 
-# function propose(rng::AbstractRNG, state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
-#     error("Not implemented for $(typeof(sampler))")
-# end
-
 function proposal_distribution(state::AbstractVector, sampler::AbstractPositionDependentRWMSampler)
     MvNormal(state, local_covariance(state, sampler))
 end
